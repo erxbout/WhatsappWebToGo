@@ -195,6 +195,11 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
 
         mWebView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
         mWebView.setScrollbarFadingEnabled(true);
+        //if (BuildConfig.DEBUG)
+        {
+            // WebView remote debugging in Windows Chromium via "chrome://inspect/#devices"
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
 
         mWebView.setWebChromeClient(new WebChromeClient() {
 
@@ -621,6 +626,83 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
                     + "  } catch(err) { }"
                     + "} )()");
         }
+
+        mWebView.evaluateJavascript(
+                "(function(){"
+                + "  console.log('cleanMetaAI installed');"
+                + "  var d = document;"
+                + "  function cleanMetaAI(){"
+                + "    if (!d.documentElement) {"
+                + "      console.log('cleanMetaAI execution deferred: document root unavailable');"
+                + "      return;"
+                + "    }"
+                + "    console.log('cleanMetaAI running');"
+                + "    try {"
+                + "      var hide = function(el){"
+                + "        if (!el) return;"
+                + "        el.style.setProperty('display', 'none', 'important');"
+                + "        var curr = el;"
+                + "        for (var depth = 0; depth < 5; depth++) {"
+                + "          var p = curr.parentElement;"
+                + "          if (!p || p === d.body || p === d.documentElement || p.id === 'app' || p.id === 'main' || p.id === 'side') break;"
+                + "          if (p.children.length === 1) {"
+                + "            p.style.setProperty('display', 'none', 'important');"
+                + "            curr = p;"
+                + "          } else {"
+                + "            break;"
+                + "          }"
+                + "        }"
+                + "      };"
+                + "      var els = d.querySelectorAll('[aria-label*=\"Meta AI\" i], [title*=\"Meta AI\" i], [id*=\"MetaAi\" i], [clip-path*=\"MetaAi\" i], [fill*=\"MetaAi\" i]');"
+                + "      console.log('cleanMetaAI attribute candidates:', els.length);"
+                + "      for (var i = 0; i < els.length; i++) {"
+                + "        var host = els[i].closest('button, [role=\"button\"], [data-navbar-item], [data-tab]') || els[i];"
+                + "        hide(host);"
+                + "      }"
+                + "      var titles = d.querySelectorAll('title, svg title');"
+                + "      console.log('cleanMetaAI title candidates:', titles.length);"
+                + "      for (var t = 0; t < titles.length; t++) {"
+                + "        if (/meta[ -]?ai/i.test(titles[t].textContent || '')) {"
+                + "          var hostTitle = titles[t].closest('button, [role=\"button\"], [data-navbar-item], [data-tab], svg') || titles[t];"
+                + "          hide(hostTitle);"
+                + "        }"
+                + "      }"
+                + "      var textMatches = 0;"
+                + "      var spans = d.querySelectorAll('span, div, button, p');"
+                + "      console.log('cleanMetaAI spans candidates:', spans.length);"
+                + "      for (var s = 0; s < spans.length; s++) {"
+                + "        var node = spans[s];"
+                + "        if (node.childNodes.length === 1 && node.childNodes[0].nodeType === Node.TEXT_NODE) {"
+                + "          var txt = node.textContent.trim();"
+                + "          if (/^Ask Meta AI$/i.test(txt) || /^Meta AI$/i.test(txt)) {"
+                + "            textMatches++;"
+                + "            var hostText = node.closest('button, [role=\"button\"], [data-navbar-item], [data-tab]') || node;"
+                + "            hide(hostText);"
+                + "          }"
+                + "        }"
+                + "      }"
+                + "      console.log('cleanMetaAI text candidates:', textMatches);"
+                + "    } catch(e) {"
+                + "      console.error('cleanMetaAI error', e);"
+                + "    }"
+                + "  }"
+                + "  cleanMetaAI();"
+                + "  if (!window.__wwtgObserver) {"
+                + "    window.__wwtgObserver = new MutationObserver(function(muts){"
+                + "        cleanMetaAI();"
+                + "      }"
+                + "    );"
+                + "    try {"
+                + "      window.__wwtgObserver.observe(d.documentElement, {"
+                + "        childList: true,"
+                + "        subtree: true"
+                + "      });"
+                + "    } catch(e) {"
+                + "      console.error('cleanMetaAI observer error', e);"
+                + "    }"
+                + "  }"
+                + "})();", null);
+
     }
 
     public void logout(){
