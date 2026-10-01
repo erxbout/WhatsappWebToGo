@@ -155,7 +155,7 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
 
         mWebView.getSettings().setDomStorageEnabled(true); //for html5 app
         mWebView.getSettings().setDatabaseEnabled(true);
-        mWebView.getSettings().setAppCacheEnabled(false); // deprecated
+        //mWebView.getSettings().setAppCacheEnabled(false); // deprecated and REMOVED!
         mWebView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
 
         mWebView.getSettings().setLoadWithOverviewMode(true);
@@ -339,18 +339,15 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.toggle_keyboard:
-                toggleKeyboard();
-                break;
-            case R.id.scroll_left:
-                showToast(R.string.appbar_button_scroll_left);
-                runOnUiThread(() -> mWebView.scrollTo(0, 0));
-                break;
-            case R.id.scroll_right:
-                showToast(R.string.appbar_title_scroll_right);
-                runOnUiThread(() -> mWebView.scrollTo(2000, 0));
-                break;
+        int itemId = item.getItemId();
+        if (itemId == R.id.toggle_keyboard) {
+            toggleKeyboard();
+        } else if (itemId == R.id.scroll_left) {
+            showToast(R.string.appbar_button_scroll_left);
+            runOnUiThread(() -> mWebView.scrollTo(0, 0));
+        } else if (itemId == R.id.scroll_right) {
+            showToast(R.string.appbar_title_scroll_right);
+            runOnUiThread(() -> mWebView.scrollTo(2000, 0));
         }
         return true;
     }
@@ -531,7 +528,10 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
             Log.e(DEBUG_TAG, "Error checking versioncode", e);
             return;
         }
-        lastShownVersionCode = mSharedPrefs.getInt("lastShownVersionCode", 0);
+        try {
+            lastShownVersionCode = mSharedPrefs.getInt("lastShownVersionCode", 0);
+        } catch (Exception ignored) {
+        }
         if (lastShownVersionCode == 0) {
             mSharedPrefs.edit().putInt("lastShownVersionCode", currentVersionCode).apply();
             return;
