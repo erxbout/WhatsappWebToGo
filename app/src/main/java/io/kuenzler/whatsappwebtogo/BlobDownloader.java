@@ -26,13 +26,11 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class BlobDownloader {
-    private Context context;
+    private final Context context;
 
     public final static String JsInstance = "Downloader";
 
     private static String lastDownloadBlob = "";
-    private static long lastDownloadTime = 0;
-    private final long sameFileDownloadTimeout = 100;
 
     public BlobDownloader(Context context) {
         this.context = context;
@@ -41,8 +39,9 @@ public class BlobDownloader {
     @JavascriptInterface
     public void getBase64FromBlobData(String base64Data) throws IOException {
         Log.d(WebviewActivity.DEBUG_TAG,"Download triggered "+ System.currentTimeMillis());
-        lastDownloadTime = System.currentTimeMillis();
+        long lastDownloadTime = System.currentTimeMillis();
 
+        long sameFileDownloadTimeout = 100;
         if(System.currentTimeMillis() - lastDownloadTime < sameFileDownloadTimeout){
             Log.d(WebviewActivity.DEBUG_TAG,"Download within sameFileDownloadTimeout");
 
@@ -103,7 +102,7 @@ public class BlobDownloader {
             intent.setDataAndType(apkURI, MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension));
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-            final PendingIntent pendingIntent = PendingIntent.getActivity(context, notificationId, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+            final PendingIntent pendingIntent = PendingIntent.getActivity(context, notificationId, intent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             final String notificationChannelId = "Downloads";
 
             final NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);

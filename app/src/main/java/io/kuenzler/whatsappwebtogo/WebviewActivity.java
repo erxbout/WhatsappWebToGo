@@ -41,6 +41,7 @@ import android.webkit.WebViewClient;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -110,6 +111,24 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                //close drawer if open and impl. press back again to leave
+                DrawerLayout drawer = findViewById(R.id.drawer_layout);
+                if (drawer.isDrawerOpen(GravityCompat.START)) {
+                    drawer.closeDrawer(GravityCompat.START);
+                } else if (System.currentTimeMillis() - mLastBackClick < 4000) {
+                    finishAffinity();
+                } else {
+                    mWebView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE));
+                    showToast(R.string.navigation_drawer_close_confirm);
+                    mLastBackClick = System.currentTimeMillis();
+                }
+            }
+        });
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -557,21 +576,6 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
         showPopupDialog(R.string.aboutText);
     }
 
-    @Override
-    public void onBackPressed() {
-        //close drawer if open and impl. press back again to leave
-        DrawerLayout drawer = findViewById(R.id.drawer_layout);
-        if (drawer.isDrawerOpen(GravityCompat.START)) {
-            drawer.closeDrawer(GravityCompat.START);
-        } else if (System.currentTimeMillis() - mLastBackClick < 1100) {
-            finishAffinity();
-        } else {
-            mWebView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE));
-            showToast(R.string.navigation_drawer_close_confirm);
-            mLastBackClick = System.currentTimeMillis();
-        }
-    }
-
     private void loadWhatsapp() {
         mWebView.getSettings().setUserAgentString(USER_AGENT);
         mWebView.loadUrl(WHATSAPP_WEB_URL);
@@ -596,29 +600,27 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
         }
     }
 
-    public void setContentSize(final WebView mWebView){
-        if (getResources().getBoolean(R.bool.isTablet)) {
-            // only change content sizes if device has a smaller screen than normally used for
-            // whatsapp web
-            // see https://stackoverflow.com/questions/9279111/determine-if-the-device-is-a-smartphone-or-tablet
-            return;
-        }
+    public void setContentSize(final WebView mWebView) {
 
-        //ToDo: Scroll to the right. See `focusChatTextInput(e)-Method of bootstrap_qr.e002978cf4688a3eaf75.js:formatted  line 67087
-        mWebView.loadUrl("javascript:(function(){" +
-                "  try { " +
-                "	var css = '.two > div:nth-child(4){flex: 1 0 100vmin;}.two{overflow:visible}'," +
-                "    	head = document.head || document.getElementsByTagName('head')[0]," +
-                "    	style = document.createElement('style');" +
-                "	head.appendChild(style);" +
-                "	style.type = 'text/css';" +
-                "	if (style.styleSheet){" +
-                "  		style.styleSheet.cssText = css;" +
-                "	} else {" +
-                "  		style.appendChild(document.createTextNode(css));" +
-                "	}" +
-                "} catch(err) { }" +
-                "})()");
+        boolean isTablet = getResources().getBoolean(R.bool.isTablet);
+
+        if (!isTablet) {
+            //ToDo: Scroll to the right. See `focusChatTextInput(e)-Method of bootstrap_qr.e002978cf4688a3eaf75.js:formatted  line 67087
+            mWebView.loadUrl("javascript:( function() {"
+                    + "  try { "
+                    + "    var css = '.two > div:nth-child(4){flex: 1 0 100vmin;}.two{overflow:visible}',"
+                    + "        head = document.head || document.getElementsByTagName('head')[0],"
+                    + "        style = document.createElement('style');"
+                    + "    head.appendChild(style);"
+                    + "    style.type = 'text/css';"
+                    + "    if (style.styleSheet) {"
+                    + "        style.styleSheet.cssText = css;"
+                    + "    } else {"
+                    + "        style.appendChild(document.createTextNode(css));"
+                    + "    }"
+                    + "  } catch(err) { }"
+                    + "} )()");
+        }
     }
 
     public void logout(){
