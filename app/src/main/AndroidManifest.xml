@@ -30,6 +30,7 @@
             android:name=".WebviewActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode"
+            android:windowSoftInputMode="stateHidden|adjustResize"
             android:persistableMode="persistAcrossReboots"
             android:launchMode="singleInstance"
             android:alwaysRetainTaskState="true"

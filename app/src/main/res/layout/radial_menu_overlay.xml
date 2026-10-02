@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/radial_menu_overlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/radial_scrim_color"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:clickable="true"
+    android:focusable="true"
+    android:visibility="gone">
+
+    <FrameLayout
+        android:id="@+id/radial_items_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- Reload -->
+        <LinearLayout
+            android:id="@+id/radial_item_reload"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="true"
+            android:focusable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/radial_fab_reload"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/sidebar_button_reload"
+                app:elevation="4dp"
+                app:fabSize="mini"
+                app:srcCompat="@drawable/ic_reload" />
+
+            <TextView
+                android:id="@+id/radial_label_reload"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/radial_item_label_margin"
+                android:background="@drawable/radial_label_background_light"
+                android:elevation="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/sidebar_button_reload"
+                android:textColor="@color/radial_text_light"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Toggle Keyboard -->
+        <LinearLayout
+            android:id="@+id/radial_item_keyboard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="true"
+            android:focusable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/radial_fab_keyboard"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/menu_block_keyboard"
+                app:elevation="4dp"
+                app:fabSize="mini"
+                app:srcCompat="@drawable/ic_keyboard_block" />
+
+            <TextView
+                android:id="@+id/radial_label_keyboard"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/radial_item_label_margin"
+                android:background="@drawable/radial_label_background_light"
+                android:elevation="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/menu_block_keyboard"
+                android:textColor="@color/radial_text_light"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Toggle Dark Mode -->
+        <LinearLayout
+            android:id="@+id/radial_item_dark_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="true"
+            android:focusable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/radial_fab_dark_mode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/sidebar_button_toggle_dark_mode"
+                app:elevation="4dp"
+                app:fabSize="mini"
+                app:srcCompat="@drawable/ic_dark_mode" />
+
+            <TextView
+                android:id="@+id/radial_label_dark_mode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/radial_item_label_margin"
+                android:background="@drawable/radial_label_background_light"
+                android:elevation="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/sidebar_button_toggle_dark_mode"
+                android:textColor="@color/radial_text_light"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Logout -->
+        <LinearLayout
+            android:id="@+id/radial_item_logout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="true"
+            android:focusable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/radial_fab_logout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/sidebar_button_logout"
+                app:elevation="4dp"
+                app:fabSize="mini"
+                app:srcCompat="@drawable/ic_logout" />
+
+            <TextView
+                android:id="@+id/radial_label_logout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/radial_item_label_margin"
+                android:background="@drawable/radial_label_background_light"
+                android:elevation="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/sidebar_button_logout"
+                android:textColor="@color/radial_text_light"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- About -->
+        <LinearLayout
+            android:id="@+id/radial_item_about"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="true"
+            android:focusable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/radial_fab_about"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/sidebar_button_about"
+                app:elevation="4dp"
+                app:fabSize="mini"
+                app:srcCompat="@drawable/ic_about" />
+
+            <TextView
+                android:id="@+id/radial_label_about"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/radial_item_label_margin"
+                android:background="@drawable/radial_label_background_light"
+                android:elevation="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/sidebar_button_about"
+                android:textColor="@color/radial_text_light"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+    </FrameLayout>
+</FrameLayout>

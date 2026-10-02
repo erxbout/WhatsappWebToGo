@@ -20,6 +20,8 @@
     <string name="appbar_button_scroll_left">Scroll left</string>
     <string name="appbar_title_scroll_right">Scroll right</string>
     <string name="appbar_button_toggle_keyboard">Toggle Keyboard</string>
+    <string name="menu_block_keyboard">Block Keyboard</string>
+    <string name="menu_unblock_keyboard">Unblock Keyboard</string>
     <string name="toast_saved_to_downloads_folder">Saved to downloads folder</string>
     <string name="notification_title_tap_to_open">Tap to open</string>
     <string name="notification_text_saved_as">Saved as %s</string>

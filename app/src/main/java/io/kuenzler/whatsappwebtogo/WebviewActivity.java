@@ -8,9 +8,9 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -26,6 +26,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.DownloadListener;
@@ -43,26 +45,21 @@ import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
-import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.Objects;
 
-public class WebviewActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+public class WebviewActivity extends AppCompatActivity {
 
     private static final String CHROME_TEMPLATE = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36";
     private static final String CHROME_VERSION_FALLBACK = "142.0.0.0";
@@ -93,8 +90,14 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
 
     private SharedPreferences mSharedPrefs;
 
-    private WebView mWebView;
+    private CustomWebView mWebView;
     private ViewGroup mMainView;
+
+    private View mRadialOverlay;
+    private ViewGroup mRadialContainer;
+    private FloatingActionButton mFabMenu;
+    private View[] mRadialItems;
+    private boolean mIsRadialMenuOpen = false;
 
     private long mLastBackClick = 0;
 
@@ -108,6 +111,10 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        mSharedPrefs = this.getSharedPreferences(this.getPackageName(), Context.MODE_PRIVATE);
+        mDarkMode = mSharedPrefs.getBoolean("darkMode", false);
+        AppCompatDelegate.setDefaultNightMode(mDarkMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
@@ -115,32 +122,52 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                //close drawer if open and impl. press back again to leave
-                DrawerLayout drawer = findViewById(R.id.drawer_layout);
-                if (drawer.isDrawerOpen(GravityCompat.START)) {
-                    drawer.closeDrawer(GravityCompat.START);
-                } else if (System.currentTimeMillis() - mLastBackClick < 4000) {
+                if (mIsRadialMenuOpen) {
+                    closeRadialMenu();
+                    return;
+                }
+                if (System.currentTimeMillis() - mLastBackClick < 4000) {
                     finishAffinity();
                 } else {
-                    mWebView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE));
+                    if (mWebView != null) {
+                        mWebView.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE));
+                    }
                     showToast(R.string.navigation_drawer_close_confirm);
                     mLastBackClick = System.currentTimeMillis();
                 }
             }
         });
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        mFabMenu = findViewById(R.id.fab_menu);
+        mRadialOverlay = findViewById(R.id.radial_menu_overlay);
+        mRadialContainer = findViewById(R.id.radial_items_container);
 
-        DrawerLayout drawer = findViewById(R.id.drawer_layout);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.addDrawerListener(toggle);
-        toggle.syncState();
+        setupRadialMenu();
 
-        NavigationView navigationView = findViewById(R.id.nav_view);
-        navigationView.setNavigationItemSelectedListener(this);
+        if (mFabMenu != null) {
+            mFabMenu.setOnClickListener(v -> toggleRadialMenu(!mIsRadialMenuOpen));
+            View coordinatorLayout = findViewById(R.id.coordinator_layout);
+            if (coordinatorLayout != null) {
+                coordinatorLayout.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                    int height = bottom - top;
+                    if (height > 0) {
+                        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) mFabMenu.getLayoutParams();
+                        int targetBottomMargin = 5 * height / 12;
+                        if (lp != null && lp.bottomMargin != targetBottomMargin) {
+                            mFabMenu.post(() -> {
+                                ViewGroup.MarginLayoutParams currentLp = (ViewGroup.MarginLayoutParams) mFabMenu.getLayoutParams();
+                                if (currentLp != null && currentLp.bottomMargin != targetBottomMargin) {
+                                    currentLp.bottomMargin = targetBottomMargin;
+                                    mFabMenu.setLayoutParams(currentLp);
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        }
 
-        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
         mSharedPrefs = this.getSharedPreferences(this.getPackageName(), Context.MODE_PRIVATE);
         mDarkMode = mSharedPrefs.getBoolean("darkMode", false);
@@ -340,9 +367,8 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
         mWebView.onResume();
 
         mKeyboardEnabled = mSharedPrefs.getBoolean("keyboardEnabled", true);
-        setAppbarEnabled(mSharedPrefs.getBoolean("appbarEnabled", true));
 
-        setKeyboardEnabled(mKeyboardEnabled);
+        setKeyboardEnabled(mKeyboardEnabled, false);
 
         showIntroInfo();
         showVersionInfo();
@@ -507,30 +533,236 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
     }
 
     private void setKeyboardEnabled(final boolean enable) {
-        mKeyboardEnabled = enable;
-        InputMethodManager inputMethodManager = (InputMethodManager) activity.getSystemService(Activity.INPUT_METHOD_SERVICE);
-        if (enable && mMainView.getDescendantFocusability() == ViewGroup.FOCUS_BLOCK_DESCENDANTS) {
-            mMainView.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-            showSnackbar(R.string.unblock_keyboard);
-            //inputMethodManager.showSoftInputFromInputMethod(activity.getCurrentFocus().getWindowToken(), 0);
-        } else if (!enable) {
-            mMainView.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
-            mWebView.getRootView().requestFocus();
-            showSnackbar(R.string.block_keyboard);
-            inputMethodManager.hideSoftInputFromWindow(activity.getCurrentFocus().getWindowToken(), 0);
-        }
-        mSharedPrefs.edit().putBoolean("keyboardEnabled", enable).apply();
+        setKeyboardEnabled(enable, true);
     }
 
-    private void setAppbarEnabled(boolean enable) {
-        ActionBar actionBar= getSupportActionBar();
-        if (actionBar != null) {
+    private void setKeyboardEnabled(final boolean enable, final boolean showFeedback) {
+        mKeyboardEnabled = enable;
+        if (mWebView != null) {
+            mWebView.setKeyboardEnabled(enable);
+        }
+        InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
+        if (inputMethodManager != null) {
             if (enable) {
-                actionBar.show();
+                if (mMainView != null && mMainView.getDescendantFocusability() == ViewGroup.FOCUS_BLOCK_DESCENDANTS) {
+                    mMainView.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+                }
+                if (showFeedback) {
+                    showSnackbar(R.string.unblock_keyboard);
+                }
             } else {
-                actionBar.hide();
+                if (mMainView != null) {
+                    mMainView.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                }
+                if (showFeedback) {
+                    showSnackbar(R.string.block_keyboard);
+                }
+                View currentFocus = getCurrentFocus();
+                if (currentFocus != null) {
+                    inputMethodManager.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
+                } else if (mWebView != null) {
+                    inputMethodManager.hideSoftInputFromWindow(mWebView.getWindowToken(), 0);
+                } else if (mMainView != null) {
+                    inputMethodManager.hideSoftInputFromWindow(mMainView.getWindowToken(), 0);
+                }
             }
-            mSharedPrefs.edit().putBoolean("appbarEnabled", enable).apply();
+        }
+        if (mWebView != null) {
+            mWebView.evaluateJavascript("if (window.__wwtgSetKeyboardBlocked) { window.__wwtgSetKeyboardBlocked(" + (!enable) + "); }", null);
+        }
+        if (mSharedPrefs != null) {
+            mSharedPrefs.edit().putBoolean("keyboardEnabled", enable).apply();
+        }
+        updateKeyboardMenuState();
+    }
+
+    private void updateKeyboardMenuState() {
+        FloatingActionButton fabKeyboard = findViewById(R.id.radial_fab_keyboard);
+        TextView labelKeyboard = findViewById(R.id.radial_label_keyboard);
+
+        int textRes = mKeyboardEnabled ? R.string.menu_block_keyboard : R.string.menu_unblock_keyboard;
+        int iconRes = mKeyboardEnabled ? R.drawable.ic_keyboard_block : R.drawable.ic_keyboard_unblock;
+
+        if (labelKeyboard != null) {
+            labelKeyboard.setText(textRes);
+        }
+        if (fabKeyboard != null) {
+            fabKeyboard.setImageResource(iconRes);
+            fabKeyboard.setContentDescription(getString(textRes));
+        }
+    }
+
+    private void setupRadialMenu() {
+        if (mRadialOverlay == null || mRadialContainer == null) return;
+
+        mRadialOverlay.setOnClickListener(v -> closeRadialMenu());
+
+        View itemReload = findViewById(R.id.radial_item_reload);
+        View itemKeyboard = findViewById(R.id.radial_item_keyboard);
+        View itemDarkMode = findViewById(R.id.radial_item_dark_mode);
+        View itemLogout = findViewById(R.id.radial_item_logout);
+        View itemAbout = findViewById(R.id.radial_item_about);
+
+        mRadialItems = new View[]{itemReload, itemKeyboard, itemDarkMode, itemLogout, itemAbout};
+
+        if (itemReload != null) {
+            itemReload.setOnClickListener(v -> {
+                closeRadialMenu();
+                showSnackbar(R.string.reloading);
+                loadWhatsapp();
+            });
+        }
+        if (itemKeyboard != null) {
+            itemKeyboard.setOnClickListener(v -> {
+                closeRadialMenu();
+                toggleKeyboard();
+            });
+        }
+        if (itemDarkMode != null) {
+            itemDarkMode.setOnClickListener(v -> {
+                closeRadialMenu();
+                toggleDarkMode();
+            });
+        }
+        if (itemLogout != null) {
+            itemLogout.setOnClickListener(v -> {
+                closeRadialMenu();
+                logout();
+            });
+        }
+        if (itemAbout != null) {
+            itemAbout.setOnClickListener(v -> {
+                closeRadialMenu();
+                showAbout();
+            });
+        }
+
+        applyRadialMenuTheme();
+        updateKeyboardMenuState();
+    }
+
+    private void toggleRadialMenu(boolean show) {
+        if (show) {
+            updateKeyboardMenuState();
+            mIsRadialMenuOpen = true;
+            mRadialOverlay.setVisibility(View.VISIBLE);
+            mRadialOverlay.setAlpha(0f);
+            mRadialOverlay.animate().alpha(1f).setDuration(220).start();
+
+            float fabHalf = getResources().getDisplayMetrics().density * 20f;
+            float cx = (mFabMenu != null) ? (mFabMenu.getX() + mFabMenu.getWidth() / 2f) : fabHalf;
+            float cy = (mFabMenu != null) ? (mFabMenu.getY() + mFabMenu.getHeight() / 2f) : fabHalf;
+
+            if (mFabMenu != null) {
+                mFabMenu.animate().rotation(135f).setDuration(220).start();
+            }
+
+            float radius = getResources().getDimension(R.dimen.radial_menu_radius);
+            float startX = cx - fabHalf;
+            float startY = cy - fabHalf;
+
+            if (mRadialItems != null) {
+                for (int i = 0; i < mRadialItems.length; i++) {
+                    View item = mRadialItems[i];
+                    if (item == null) continue;
+                    double angleRad = Math.toRadians(-60.0 + i * 30.0);
+                    float targetX = cx + (float) (radius * Math.cos(angleRad)) - fabHalf;
+                    float targetY = cy + (float) (radius * Math.sin(angleRad)) - fabHalf;
+
+                    item.setX(startX);
+                    item.setY(startY);
+                    item.setPivotX(fabHalf);
+                    item.setPivotY(fabHalf);
+                    item.setScaleX(0f);
+                    item.setScaleY(0f);
+                    item.setAlpha(0f);
+
+                    item.animate()
+                            .x(targetX)
+                            .y(targetY)
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .alpha(1f)
+                            .setDuration(250)
+                            .setInterpolator(new OvershootInterpolator(1.2f))
+                            .start();
+                }
+            }
+        } else {
+            closeRadialMenu();
+        }
+    }
+
+    private void closeRadialMenu() {
+        if (!mIsRadialMenuOpen) return;
+        mIsRadialMenuOpen = false;
+
+        float fabHalf = getResources().getDisplayMetrics().density * 20f;
+        float startX = (mFabMenu != null) ? (mFabMenu.getX() + mFabMenu.getWidth() / 2f - fabHalf) : 0f;
+        float startY = (mFabMenu != null) ? (mFabMenu.getY() + mFabMenu.getHeight() / 2f - fabHalf) : 0f;
+
+        if (mRadialItems != null) {
+            for (View item : mRadialItems) {
+                if (item == null) continue;
+                item.animate()
+                        .x(startX)
+                        .y(startY)
+                        .scaleX(0f)
+                        .scaleY(0f)
+                        .alpha(0f)
+                        .setDuration(180)
+                        .setInterpolator(new DecelerateInterpolator())
+                        .start();
+            }
+        }
+
+        if (mRadialOverlay != null) {
+            mRadialOverlay.animate()
+                    .alpha(0f)
+                    .setDuration(180)
+                    .withEndAction(() -> mRadialOverlay.setVisibility(View.GONE))
+                    .start();
+        }
+
+        if (mFabMenu != null) {
+            mFabMenu.animate().rotation(0f).setDuration(180).start();
+        }
+    }
+
+    private void applyRadialMenuTheme() {
+        if (mRadialItems == null) return;
+
+        int fabBgColor = ContextCompat.getColor(this, mDarkMode ? R.color.radial_fab_bg_dark : R.color.radial_fab_bg_light);
+        int iconTint = ContextCompat.getColor(this, mDarkMode ? R.color.radial_icon_tint_dark : R.color.radial_icon_tint_light);
+        int labelBgRes = mDarkMode ? R.drawable.radial_label_background_dark : R.drawable.radial_label_background_light;
+        int textColor = ContextCompat.getColor(this, mDarkMode ? R.color.radial_text_dark : R.color.radial_text_light);
+
+        int[] fabIds = {
+                R.id.radial_fab_reload,
+                R.id.radial_fab_keyboard,
+                R.id.radial_fab_dark_mode,
+                R.id.radial_fab_logout,
+                R.id.radial_fab_about
+        };
+        int[] labelIds = {
+                R.id.radial_label_reload,
+                R.id.radial_label_keyboard,
+                R.id.radial_label_dark_mode,
+                R.id.radial_label_logout,
+                R.id.radial_label_about
+        };
+
+        for (int i = 0; i < fabIds.length; i++) {
+            FloatingActionButton fab = findViewById(fabIds[i]);
+            if (fab != null) {
+                fab.setBackgroundTintList(ColorStateList.valueOf(fabBgColor));
+                fab.setImageTintList(ColorStateList.valueOf(iconTint));
+            }
+            TextView label = findViewById(labelIds[i]);
+            if (label != null) {
+                label.setBackgroundResource(labelBgRes);
+                label.setTextColor(textColor);
+            }
         }
     }
 
@@ -539,6 +771,8 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
         mSharedPrefs.edit().putBoolean("darkMode", !currentState).apply();
 
         Log.d(DEBUG_TAG, "Dark Mode Enabled: " + !currentState);
+        applyRadialMenuTheme();
+        AppCompatDelegate.setDefaultNightMode(mDarkMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
         recreate();
     }
 
@@ -590,8 +824,6 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
         getWindow().setNavigationBarColor(Color.BLACK);
         getWindow().setStatusBarColor(Color.BLACK);
 
-        Objects.requireNonNull(getSupportActionBar()).setBackgroundDrawable(new ColorDrawable(Color.BLACK));
-
         if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
             WebSettingsCompat.setForceDark(mWebView.getSettings(), WebSettingsCompat.FORCE_DARK_ON);
             if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK_STRATEGY)) {
@@ -627,9 +859,17 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
                     + "} )()");
         }
 
-        String js = JsUtils.loadJsAsset(this, "cleanMetaAI.js");
-        mWebView.evaluateJavascript(js, null);
+        String cleanMetaAI = JsUtils.loadJsAsset(this, "cleanMetaAI.js");
+        mWebView.evaluateJavascript(cleanMetaAI, null);
 
+        String focusPatch = JsUtils.loadJsAsset(this, "focusPatch.js");
+        // ensure focusPatch is defined (loaded) before calling (installing) the patch
+        mWebView.evaluateJavascript(focusPatch, value -> {
+            mWebView.evaluateJavascript(
+                    "installFocusPatch(" + mKeyboardEnabled + ");",
+                    null
+            );
+        });
     }
 
     public void logout(){
@@ -645,42 +885,6 @@ public class WebviewActivity extends AppCompatActivity implements NavigationView
                 })
                 .setNegativeButton(R.string.no_button, (dialog, which) -> dialog.dismiss())
                 .show();
-    }
-
-    @Override
-    public boolean onNavigationItemSelected(MenuItem item) {
-        // Handle navigation view item clicks here.
-        int id = item.getItemId();
-
-        if (id == R.id.appbar_hide) {
-            if (getSupportActionBar().isShowing()) {
-                showSnackbar(R.string.appbar_hiding);
-                setAppbarEnabled(false);
-            } else {
-                setAppbarEnabled(true);
-            }
-        } else if (id == R.id.nav_logout) {
-           logout();
-        } else if (id == R.id.nav_new) {
-            //showToast("nav_new");
-        } else if (id == R.id.nav_switch) {
-            //showToast("nav_switch");
-        } else if (id == R.id.nav_settings) {
-            //showToast("nav_settings");
-        } else if (id == R.id.nav_about) {
-            showAbout();
-        } else if (id == R.id.nav_reload) {
-            showSnackbar(R.string.reloading);
-            loadWhatsapp();
-        } else if (id == R.id.nav_dark_mode) {
-            toggleDarkMode();
-        } else if (id == R.id.nav_keyboard) {
-            toggleKeyboard();
-        }
-
-        DrawerLayout drawer = findViewById(R.id.drawer_layout);
-        drawer.closeDrawer(GravityCompat.START);
-        return true;
     }
 
 }
