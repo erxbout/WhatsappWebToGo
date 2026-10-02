@@ -17,6 +17,7 @@
     <uses-feature android:name="android.hardware.camera" />
 
     <application
+        android:name=".WhatsappWebToGoApplication"
         android:allowBackup="true"
         android:fullBackupContent="true"
         android:label="@string/app_name"

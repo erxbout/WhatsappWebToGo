@@ -3,6 +3,7 @@ package io.kuenzler.whatsappwebtogo;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.UiModeManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -54,6 +55,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
@@ -118,7 +120,6 @@ public class WebviewActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         mSharedPrefs = this.getSharedPreferences(this.getPackageName(), Context.MODE_PRIVATE);
         mDarkMode = mSharedPrefs.getBoolean("darkMode", false);
-        AppCompatDelegate.setDefaultNightMode(mDarkMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
 
         super.onCreate(savedInstanceState);
 
@@ -307,6 +308,18 @@ public class WebviewActivity extends AppCompatActivity {
                 view.scrollTo(0, 0);
                 setContentSize(view);
                 addDarkMode(view);
+                view.evaluateJavascript(
+                        "JSON.stringify({" +
+                                "prefersDark: window.matchMedia('(prefers-color-scheme: dark)').matches," +
+                                "htmlClass: document.documentElement.className," +
+                                "bodyClass: document.body ? document.body.className : null," +
+                                "colorScheme: getComputedStyle(document.documentElement).colorScheme," +
+                                "background: document.body" +
+                                " ? getComputedStyle(document.body).backgroundColor" +
+                                " : null" +
+                                "})",
+                        value -> Log.d(DEBUG_TAG, "Web theme state: " + value)
+                );
             }
 
             @Override
@@ -821,15 +834,94 @@ public class WebviewActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Toggles and persists the application's selected theme.
+     *
+     * <p>On Android 12/API 31 and newer, the application night mode is applied
+     * through {@link UiModeManager}. Older Android versions use
+     * {@link AppCompatDelegate}.</p>
+     */
     private void toggleDarkMode() {
-        boolean currentState = mSharedPrefs.getBoolean("darkMode", false);
-        mDarkMode = !currentState;
-        mSharedPrefs.edit().putBoolean("darkMode", mDarkMode).apply();
+        // Toggle the current theme state.
+        mDarkMode = !mDarkMode;
+
+        /*
+         * Persist synchronously before changing the night mode. Applying the new
+         * night mode can recreate the Activity immediately, so commit() ensures
+         * that the recreated Activity reads the updated preference.
+         */
+        boolean saved = mSharedPrefs.edit()
+                .putBoolean("darkMode", mDarkMode)
+                .commit();
+
+        if (!saved) {
+            Log.e(DEBUG_TAG, "Failed to save the dark-mode preference.");
+            return;
+        }
 
         Log.d(DEBUG_TAG, "Dark Mode Enabled: " + mDarkMode);
-        applyRadialMenuTheme();
-        AppCompatDelegate.setDefaultNightMode(mDarkMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+
+        // Immediately synchronize the status and navigation bars.
+        applySystemBarTheme();
+
+        /*
+         * Android 12/API 31 and newer support application-level night mode
+         * directly through UiModeManager.
+         */
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            UiModeManager uiModeManager = getSystemService(UiModeManager.class);
+
+            if (uiModeManager == null) {
+                Log.e(DEBUG_TAG, "UiModeManager is unavailable.");
+                return;
+            }
+
+            uiModeManager.setApplicationNightMode(
+                    mDarkMode
+                            ? UiModeManager.MODE_NIGHT_YES
+                            : UiModeManager.MODE_NIGHT_NO
+            );
+
+        } else {
+
+            /*
+             * Android 11/API 30 and older use AppCompatDelegate. This can recreate
+             * the Activity so that resources for the selected theme are reloaded.
+             */
+            AppCompatDelegate.setDefaultNightMode(
+                    mDarkMode
+                            ? AppCompatDelegate.MODE_NIGHT_YES
+                            : AppCompatDelegate.MODE_NIGHT_NO
+            );
+        }
     }
+
+    /**
+     * Applies the status-bar and navigation-bar appearance for the currently
+     * selected application theme.
+     *
+     * <p>This method updates both the system-bar background colors and their icon
+     * appearance. Light backgrounds use dark icons, while dark backgrounds use
+     * light icons.</p>
+     */
+    private void applySystemBarTheme() {
+        // Obtain the compat*bility controller used to configure system-bar icons.
+        WindowInsetsControllerCompat insetsController =
+                new WindowInsetsControllerCompat(
+                        getWindow(),
+                        getWindow().getDecorView()
+                );
+
+        int color = mDarkMode ? Color.BLACK : ContextCompat.getColor(
+                this,
+                R.color.colorPrimaryDark
+        );
+        getWindow().setStatusBarColor(color);
+        getWindow().setNavigationBarColor(color);
+        insetsController.setAppearanceLightStatusBars(!mDarkMode);
+        insetsController.setAppearanceLightNavigationBars(!mDarkMode);
+    }
+
 
     private void showVersionInfo() {
         int lastShownVersionCode = 0;
@@ -877,9 +969,9 @@ public class WebviewActivity extends AppCompatActivity {
 
     @SuppressWarnings("deprecation")
     public void addDarkMode(final WebView mWebView) {
+        // Keep the system bars synchronized with the current application theme.
+        applySystemBarTheme();
         if (mDarkMode) {
-            getWindow().setNavigationBarColor(Color.BLACK);
-            getWindow().setStatusBarColor(Color.BLACK);
             mWebView.setBackgroundColor(Color.parseColor("#111b21"));
 
             if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
@@ -892,8 +984,6 @@ public class WebviewActivity extends AppCompatActivity {
                 }
             }
         } else {
-            getWindow().setNavigationBarColor(Color.BLACK);
-            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.colorPrimaryDark));
             mWebView.setBackgroundColor(Color.WHITE);
             if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                 WebSettingsCompat.setAlgorithmicDarkeningAllowed(mWebView.getSettings(), false);
