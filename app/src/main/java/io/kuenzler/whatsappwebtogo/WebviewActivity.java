@@ -1014,7 +1014,8 @@ public class WebviewActivity extends AppCompatActivity {
                     + "        style.appendChild(document.createTextNode(css));"
                     + "    }"
                     + "  } catch(err) { }"
-                    + "} )()");
+                    + "} )()"
+            );
         }
 
         String cleanMetaAI = JsUtils.loadJsAsset(this, "cleanMetaAI.js");
@@ -1028,6 +1029,11 @@ public class WebviewActivity extends AppCompatActivity {
                     null
             );
         });
+
+        // Load the attachment-menu positioning patch.
+        String attachmentMenuPositionPatch = JsUtils.loadJsAsset(this,"attachmentMenuPositionPatch.js");
+        mWebView.evaluateJavascript(attachmentMenuPositionPatch, null);
+
     }
 
     public void logout(){
