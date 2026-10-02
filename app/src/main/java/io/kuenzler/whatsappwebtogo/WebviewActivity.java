@@ -11,6 +11,8 @@ import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -44,11 +46,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
+import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
@@ -169,9 +174,6 @@ public class WebviewActivity extends AppCompatActivity {
 
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
-        mSharedPrefs = this.getSharedPreferences(this.getPackageName(), Context.MODE_PRIVATE);
-        mDarkMode = mSharedPrefs.getBoolean("darkMode", false);
-
         mMainView = findViewById(R.id.layout);
 
         // webview stuff
@@ -228,6 +230,8 @@ public class WebviewActivity extends AppCompatActivity {
             WebView.setWebContentsDebuggingEnabled(true);
         }
 
+        addDarkMode(mWebView);
+
         mWebView.setWebChromeClient(new WebChromeClient() {
 
             @Override
@@ -273,6 +277,7 @@ public class WebviewActivity extends AppCompatActivity {
                 return super.onConsoleMessage(cm);
             }
 
+            @Override
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
                 mUploadMessage = filePathCallback;
                 Intent chooserIntent = fileChooserParams.createIntent();
@@ -286,29 +291,22 @@ public class WebviewActivity extends AppCompatActivity {
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 setContentSize(view);
-                if (mDarkMode) {
-                    addDarkMode(view);
-                }
+                addDarkMode(view);
             }
 
             @Override
             public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
                 setContentSize(view);
-                if (mDarkMode) {
-                    addDarkMode(view);
-                }
+                addDarkMode(view);
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 view.scrollTo(0, 0);
-
                 setContentSize(view);
-                if (mDarkMode) {
-                    addDarkMode(view);
-                }
+                addDarkMode(view);
             }
 
             @Override
@@ -364,7 +362,9 @@ public class WebviewActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        mWebView.onResume();
+        if (mWebView != null) {
+            mWebView.onResume();
+        }
 
         mKeyboardEnabled = mSharedPrefs.getBoolean("keyboardEnabled", true);
 
@@ -377,7 +377,9 @@ public class WebviewActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        mWebView.onPause();
+        if (mWebView != null) {
+            mWebView.onPause();
+        }
     }
 
     @Override
@@ -388,16 +390,45 @@ public class WebviewActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        MenuItem kb_toggle = menu.findItem(R.id.toggle_keyboard);
+        if (kb_toggle != null) {
+            int textRes = mKeyboardEnabled ? R.string.menu_block_keyboard : R.string.menu_unblock_keyboard;
+            int iconRes = mKeyboardEnabled ? R.drawable.ic_keyboard_block : R.drawable.ic_keyboard_unblock;
+            kb_toggle.setTitle(textRes);
+            Drawable icon = AppCompatResources.getDrawable(this, iconRes);
+            if (icon != null) {
+                if (!mKeyboardEnabled) {
+                    int new_color;
+                    if (mDarkMode) {
+                        new_color = Color.parseColor("#3377f6"); // cyan
+                    } else {
+                        new_color = Color.parseColor("#000000");
+                    }
+                    DrawableCompat.setTint(icon, new_color);
+                }
+                kb_toggle.setIcon(icon);
+            }
+        }
+
+        return true;
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
         if (itemId == R.id.toggle_keyboard) {
             toggleKeyboard();
         } else if (itemId == R.id.scroll_left) {
             showToast(R.string.appbar_button_scroll_left);
-            runOnUiThread(() -> mWebView.scrollTo(0, 0));
+            if (mWebView != null) {
+                runOnUiThread(() -> mWebView.scrollTo(0, 0));
+            }
         } else if (itemId == R.id.scroll_right) {
             showToast(R.string.appbar_title_scroll_right);
-            runOnUiThread(() -> mWebView.scrollTo(2000, 0));
+            if (mWebView != null) {
+                runOnUiThread(() -> mWebView.scrollTo(2000, 0));
+            }
         }
         return true;
     }
@@ -468,15 +499,19 @@ public class WebviewActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        mWebView.saveState(outState);
+        if (mWebView != null) {
+            mWebView.saveState(outState);
+        }
     }
 
     @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        mWebView.restoreState(savedInstanceState);
+        if (mWebView != null) {
+            mWebView.restoreState(savedInstanceState);
+        }
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -508,7 +543,16 @@ public class WebviewActivity extends AppCompatActivity {
                 .setPositiveButton(R.string.ok_button, null);
         AlertDialog alert = builder.create();
         alert.show();
-        ((TextView) alert.findViewById(android.R.id.message)).setMovementMethod(LinkMovementMethod.getInstance());
+        TextView messageView = alert.findViewById(android.R.id.message);
+        if (messageView != null) {
+            messageView.setMovementMethod(LinkMovementMethod.getInstance());
+            if (mDarkMode) {
+                messageView.setTextColor(Color.WHITE);
+            }
+        }
+        if (mDarkMode && alert.getWindow() != null) {
+            alert.getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+        }
     }
 
     private void showPopupDialog(int resId) {
@@ -516,15 +560,26 @@ public class WebviewActivity extends AppCompatActivity {
     }
 
     private void showToast(int resId) {
-        this.runOnUiThread(() -> Toast.makeText(this, getString(resId), Toast.LENGTH_LONG).show());
+        showToast(getString(resId));
+    }
+
+    private void showToast(String message) {
+        this.runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_LONG).show());
     }
 
     private void showSnackbar(int resId) {
+        showSnackbar(getString(resId));
+    }
+
+    private void showSnackbar(CharSequence message) {
         this.runOnUiThread(() -> {
-            final Snackbar snackbar = Snackbar.make(findViewById(android.R.id.content), getString(resId), 900);
-            snackbar.setAction(getString(R.string.dismiss), (View view) -> snackbar.dismiss());
-            snackbar.setActionTextColor(Color.parseColor("#075E54"));
-            snackbar.show();
+            View view = findViewById(android.R.id.content);
+            if (view != null) {
+                final Snackbar snackbar = Snackbar.make(view, message, Snackbar.LENGTH_SHORT);
+                snackbar.setAction(getString(R.string.dismiss), (View v) -> snackbar.dismiss());
+                snackbar.setActionTextColor(Color.parseColor("#075E54"));
+                snackbar.show();
+            }
         });
     }
 
@@ -768,12 +823,12 @@ public class WebviewActivity extends AppCompatActivity {
 
     private void toggleDarkMode() {
         boolean currentState = mSharedPrefs.getBoolean("darkMode", false);
-        mSharedPrefs.edit().putBoolean("darkMode", !currentState).apply();
+        mDarkMode = !currentState;
+        mSharedPrefs.edit().putBoolean("darkMode", mDarkMode).apply();
 
-        Log.d(DEBUG_TAG, "Dark Mode Enabled: " + !currentState);
+        Log.d(DEBUG_TAG, "Dark Mode Enabled: " + mDarkMode);
         applyRadialMenuTheme();
         AppCompatDelegate.setDefaultNightMode(mDarkMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
-        recreate();
     }
 
     private void showVersionInfo() {
@@ -820,21 +875,34 @@ public class WebviewActivity extends AppCompatActivity {
         mWebView.loadUrl(WHATSAPP_WEB_URL);
     }
 
+    @SuppressWarnings("deprecation")
     public void addDarkMode(final WebView mWebView) {
-        getWindow().setNavigationBarColor(Color.BLACK);
-        getWindow().setStatusBarColor(Color.BLACK);
+        if (mDarkMode) {
+            getWindow().setNavigationBarColor(Color.BLACK);
+            getWindow().setStatusBarColor(Color.BLACK);
+            mWebView.setBackgroundColor(Color.parseColor("#111b21"));
 
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
-            WebSettingsCompat.setForceDark(mWebView.getSettings(), WebSettingsCompat.FORCE_DARK_ON);
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK_STRATEGY)) {
-                WebSettingsCompat.setForceDarkStrategy(mWebView.getSettings(), WebSettingsCompat.DARK_STRATEGY_PREFER_WEB_THEME_OVER_USER_AGENT_DARKENING);
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                WebSettingsCompat.setAlgorithmicDarkeningAllowed(mWebView.getSettings(), true);
+            }
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                WebSettingsCompat.setForceDark(mWebView.getSettings(), WebSettingsCompat.FORCE_DARK_ON);
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK_STRATEGY)) {
+                    WebSettingsCompat.setForceDarkStrategy(mWebView.getSettings(), WebSettingsCompat.DARK_STRATEGY_PREFER_WEB_THEME_OVER_USER_AGENT_DARKENING);
+                }
             }
         } else {
-            mWebView.loadUrl("javascript:(" +
-                    "function(){ " +
-                    "try {  document.body.classList.add('dark') } catch(err) { }" +
-                    "})()");
+            getWindow().setNavigationBarColor(Color.BLACK);
+            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.colorPrimaryDark));
+            mWebView.setBackgroundColor(Color.WHITE);
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                WebSettingsCompat.setAlgorithmicDarkeningAllowed(mWebView.getSettings(), false);
+            }
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                WebSettingsCompat.setForceDark(mWebView.getSettings(), WebSettingsCompat.FORCE_DARK_OFF);
+            }
         }
+        setContentSize(mWebView);
     }
 
     public void setContentSize(final WebView mWebView) {
