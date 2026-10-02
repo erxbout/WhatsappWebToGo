@@ -88,7 +88,7 @@
 
         <!-- Toggle Dark Mode -->
         <LinearLayout
-            android:id="@+id/radial_item_dark_mode"
+            android:id="@+id/radial_item_settings"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
@@ -99,23 +99,23 @@
             android:clipToPadding="false">
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/radial_fab_dark_mode"
+                android:id="@+id/radial_fab_settings"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:contentDescription="@string/sidebar_button_toggle_dark_mode"
+                android:contentDescription="@string/sidebar_button_settings"
                 app:elevation="4dp"
                 app:fabSize="mini"
-                app:srcCompat="@drawable/ic_dark_mode" />
+                app:srcCompat="@drawable/ic_manage" />
 
             <TextView
-                android:id="@+id/radial_label_dark_mode"
+                android:id="@+id/radial_label_settings"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/radial_item_label_margin"
                 android:background="@drawable/radial_label_background_light"
                 android:elevation="4dp"
                 android:fontFamily="sans-serif-medium"
-                android:text="@string/sidebar_button_toggle_dark_mode"
+                android:text="@string/sidebar_button_settings"
                 android:textColor="@color/radial_text_light"
                 android:textSize="13sp" />
         </LinearLayout>

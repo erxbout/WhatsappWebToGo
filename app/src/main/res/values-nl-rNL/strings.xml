@@ -1,20 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="introInfoText">Bedankt voor het installeren. Verbind je telefoon op dezelfde manier als dat je op een computer zou doen. Om het toetsenbord te schakelen gebruik de toetsenbord-knop rechts boven. De instellingen worden opgeslagen.</string>
-    <string name="navigation_drawer_open">Open navigatie menu</string>
-    <string name="navigation_drawer_close">Sluit navigatie menu</string>
     <string name="sidebar_button_logout">Uitloggen</string>
     <string name="sidebar_button_reload">Herladen</string>
-    <string name="sidebar_button_new_session">Nieuwe Sessie</string>
-    <string name="sidebar_button_switch_session">Sessie Wisselen</string>
-    <string name="sidebar_button_toggle_appbar_visibility">Zichtbaarheid van de Appbar aanpassen</string>
     <string name="sidebar_button_toggle_dark_mode">Donkere modus schakelen</string>
     <string name="sidebar_button_about">Over</string>
     <string name="sidebar_title_settings">Instellingen</string>
     <string name="sidebar_button_settings">\@string/sidebar_title_settings</string>
-    <string name="appbar_button_scroll_left">Naar links scrollen</string>
-    <string name="appbar_title_scroll_right">Naar rechts scrollen</string>
-    <string name="appbar_button_toggle_keyboard">Toetsenbord schakelen</string>
     <string name="menu_block_keyboard">Toetsenbord vergrendelen</string>
     <string name="menu_unblock_keyboard">Toetsenbord ontgrendelen</string>
     <string name="toast_saved_to_downloads_folder">Opgeslagen in de Downloads map</string>

@@ -13,7 +13,6 @@ import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -23,9 +22,6 @@ import android.text.method.LinkMovementMethod;
 import android.text.util.Linkify;
 import android.util.Log;
 import android.view.KeyEvent;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -43,6 +39,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -52,10 +49,8 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
-import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
-import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -112,22 +107,25 @@ public class WebviewActivity extends AppCompatActivity {
 
     private long mLastBackClick = 0;
 
-    boolean mKeyboardEnabled = false;
-    boolean mDarkMode;
+    private boolean mKeyboardEnabled = false;
+    private boolean mDarkMode;
+    /**
+     * Tracks whether the Activity currently requests fullscreen display.
+     */
+    private boolean mFullScreen;
+
+    private static final String PREF_DARK_MODE = "darkMode";
+    private static final String PREF_FULLSCREEN = "fullScreen";
 
     private ValueCallback<Uri[]> mUploadMessage;
     private PermissionRequest mCurrentPermissionRequest;
     private String mCurrentDownloadRequest = null;
 
-    /**
-     * Tracks whether the Activity currently requests fullscreen display.
-     */
-    private boolean mFullscreenEnabled = true;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         mSharedPrefs = this.getSharedPreferences(this.getPackageName(), Context.MODE_PRIVATE);
-        mDarkMode = mSharedPrefs.getBoolean("darkMode", false);
+        mDarkMode = mSharedPrefs.getBoolean(PREF_DARK_MODE, false);
+        mFullScreen = mSharedPrefs.getBoolean(PREF_FULLSCREEN, true);
 
         super.onCreate(savedInstanceState);
 
@@ -340,9 +338,9 @@ public class WebviewActivity extends AppCompatActivity {
                 Log.d(DEBUG_TAG, url.toString());
 
                 if (url.toString().equals(WHATSAPP_HOMEPAGE_URL)){
-                    // when whatsapp somehow detects that waweb is running on a phone (e.g. trough
-                    // the user agent, but apparently somehow else), it automatically redicts to the
-                    // WHATSAPP_HOMEPAGE_URL. It's higly unlikely that a user wants to visit the
+                    // when WhatsApp somehow detects that waweb is running on a phone (e.g. through
+                    // the user agent but apparently somehow else), it automatically redirects to the
+                    // WHATSAPP_HOMEPAGE_URL. It's highly unlikely that a user wants to visit the
                     // WHATSAPP_HOMEPAGE_URL from within waweb.
                     // -> block the request and reload waweb
                     showToast(R.string.reload_required);
@@ -408,57 +406,6 @@ public class WebviewActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.action_bar, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        MenuItem kb_toggle = menu.findItem(R.id.toggle_keyboard);
-        if (kb_toggle != null) {
-            int textRes = mKeyboardEnabled ? R.string.menu_block_keyboard : R.string.menu_unblock_keyboard;
-            int iconRes = mKeyboardEnabled ? R.drawable.ic_keyboard_block : R.drawable.ic_keyboard_unblock;
-            kb_toggle.setTitle(textRes);
-            Drawable icon = AppCompatResources.getDrawable(this, iconRes);
-            if (icon != null) {
-                if (!mKeyboardEnabled) {
-                    int new_color;
-                    if (mDarkMode) {
-                        new_color = Color.parseColor("#3377f6"); // cyan
-                    } else {
-                        new_color = Color.parseColor("#000000");
-                    }
-                    DrawableCompat.setTint(icon, new_color);
-                }
-                kb_toggle.setIcon(icon);
-            }
-        }
-
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int itemId = item.getItemId();
-        if (itemId == R.id.toggle_keyboard) {
-            toggleKeyboard();
-        } else if (itemId == R.id.scroll_left) {
-            showToast(R.string.appbar_button_scroll_left);
-            if (mWebView != null) {
-                runOnUiThread(() -> mWebView.scrollTo(0, 0));
-            }
-        } else if (itemId == R.id.scroll_right) {
-            showToast(R.string.appbar_title_scroll_right);
-            if (mWebView != null) {
-                runOnUiThread(() -> mWebView.scrollTo(2000, 0));
-            }
-        }
-        return true;
-    }
-
-    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
@@ -479,7 +426,7 @@ public class WebviewActivity extends AppCompatActivity {
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
             case VIDEO_PERMISSION_RESULTCODE:
@@ -497,7 +444,6 @@ public class WebviewActivity extends AppCompatActivity {
                 break;
             case CAMERA_PERMISSION_RESULTCODE:
             case AUDIO_PERMISSION_RESULTCODE:
-                //same same
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     try {
                         mCurrentPermissionRequest.grant(mCurrentPermissionRequest.getResources());
@@ -688,11 +634,11 @@ public class WebviewActivity extends AppCompatActivity {
 
         View itemReload = findViewById(R.id.radial_item_reload);
         View itemKeyboard = findViewById(R.id.radial_item_keyboard);
-        View itemDarkMode = findViewById(R.id.radial_item_dark_mode);
+        View itemSettings = findViewById(R.id.radial_item_settings);
         View itemLogout = findViewById(R.id.radial_item_logout);
         View itemAbout = findViewById(R.id.radial_item_about);
 
-        mRadialItems = new View[]{itemReload, itemKeyboard, itemDarkMode, itemLogout, itemAbout};
+        mRadialItems = new View[]{itemReload, itemKeyboard, itemSettings, itemLogout, itemAbout};
 
         if (itemReload != null) {
             itemReload.setOnClickListener(v -> {
@@ -707,10 +653,11 @@ public class WebviewActivity extends AppCompatActivity {
                 toggleKeyboard();
             });
         }
-        if (itemDarkMode != null) {
-            itemDarkMode.setOnClickListener(v -> {
+        if (itemSettings != null) {
+            itemSettings.setOnClickListener(v -> {
                 closeRadialMenu();
-                toggleDarkMode();
+                //toggleDarkMode();
+                showSettingsDialog();
             });
         }
         if (itemLogout != null) {
@@ -829,14 +776,14 @@ public class WebviewActivity extends AppCompatActivity {
         int[] fabIds = {
                 R.id.radial_fab_reload,
                 R.id.radial_fab_keyboard,
-                R.id.radial_fab_dark_mode,
+                R.id.radial_fab_settings,
                 R.id.radial_fab_logout,
                 R.id.radial_fab_about
         };
         int[] labelIds = {
                 R.id.radial_label_reload,
                 R.id.radial_label_keyboard,
-                R.id.radial_label_dark_mode,
+                R.id.radial_label_settings,
                 R.id.radial_label_logout,
                 R.id.radial_label_about
         };
@@ -856,34 +803,15 @@ public class WebviewActivity extends AppCompatActivity {
     }
 
     /**
-     * Toggles and persists the application's selected theme.
+     * Applies and persists the application's selected theme to both the Android
+     * application UI and the currently loaded WebView content.
      *
-     * <p>On Android 12/API 31 and newer, the application night mode is applied
-     * through {@link UiModeManager}. Older Android versions use
-     * {@link AppCompatDelegate}.</p>
+     * <p>The WebView darkening configuration must be updated explicitly because
+     * changing the Android application night mode does not reliably restyle an
+     * already-loaded web document.</p>
      */
-    private void toggleDarkMode() {
-        // Toggle the current theme state.
-        mDarkMode = !mDarkMode;
-
-        /*
-         * Persist synchronously before changing the night mode. Applying the new
-         * night mode can recreate the Activity immediately, so commit() ensures
-         * that the recreated Activity reads the updated preference.
-         */
-        boolean saved = mSharedPrefs.edit()
-                .putBoolean("darkMode", mDarkMode)
-                .commit();
-
-        if (!saved) {
-            Log.e(DEBUG_TAG, "Failed to save the dark-mode preference.");
-            return;
-        }
-
+    private void applyDarkMode() {
         Log.d(DEBUG_TAG, "Dark Mode Enabled: " + mDarkMode);
-
-        // Immediately synchronize the status and navigation bars.
-        applySystemBarTheme();
 
         /*
          * Android 12/API 31 and newer support application-level night mode
@@ -891,7 +819,6 @@ public class WebviewActivity extends AppCompatActivity {
          */
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             UiModeManager uiModeManager = getSystemService(UiModeManager.class);
-
             if (uiModeManager == null) {
                 Log.e(DEBUG_TAG, "UiModeManager is unavailable.");
                 return;
@@ -902,9 +829,7 @@ public class WebviewActivity extends AppCompatActivity {
                             ? UiModeManager.MODE_NIGHT_YES
                             : UiModeManager.MODE_NIGHT_NO
             );
-
         } else {
-
             /*
              * Android 11/API 30 and older use AppCompatDelegate. This can recreate
              * the Activity so that resources for the selected theme are reloaded.
@@ -915,32 +840,74 @@ public class WebviewActivity extends AppCompatActivity {
                             : AppCompatDelegate.MODE_NIGHT_NO
             );
         }
+
+        /*
+         * Apply the new mode explicitly to the existing WebView. Changing the
+         * application night mode alone does not update WebView darkening settings.
+         */
+        if (mWebView != null) {
+            addDarkMode(mWebView);
+        }
+
+        // Update the native radial menu without waiting for Activity recreation.
+        applyRadialMenuTheme();
     }
 
     /**
      * Applies the status-bar and navigation-bar appearance for the currently
      * selected application theme.
      *
-     * <p>This method updates both the system-bar background colors and their icon
-     * appearance. Light backgrounds use dark icons, while dark backgrounds use
-     * light icons.</p>
+     * <p>On edge-to-edge Android versions, the status bar itself is transparent.
+     * Therefore, the Activity root view must draw the desired color behind the
+     * status-bar icons.</p>
      */
     private void applySystemBarTheme() {
-        // Obtain the compatibility controller used to configure system-bar icons.
         WindowInsetsControllerCompat insetsController =
-                new WindowInsetsControllerCompat(
+                WindowCompat.getInsetsController(
                         getWindow(),
                         getWindow().getDecorView()
                 );
 
-        int color = mDarkMode ? Color.BLACK : ContextCompat.getColor(
-                this,
-                R.color.colorPrimaryDark
-        );
+        /*
+         * Resolve the desired system-bar background color from the setting stored
+         * in mDarkMode instead of relying on Configuration.UI_MODE_NIGHT_MASK.
+         */
+        int color = mDarkMode
+                ? Color.BLACK
+                : Color.WHITE;
+
+        /*
+         * Retain these calls for Android versions and device configurations where
+         * opaque system-bar colors are still supported.
+         */
         getWindow().setStatusBarColor(color);
         getWindow().setNavigationBarColor(color);
+
+        /*
+         * With edge-to-edge, the status bar is transparent. The visible background
+         * is consequently supplied by the Activity content drawn underneath it.
+         *
+         * applySystemBarInsets() adds top padding to this root view, exposing the
+         * root background in the status-bar region.
+         */
+        ViewGroup contentContainer = findViewById(android.R.id.content);
+        if (contentContainer != null && contentContainer.getChildCount() > 0) {
+            View rootView = contentContainer.getChildAt(0);
+            rootView.setBackgroundColor(color);
+        } else {
+            Log.e(
+                    DEBUG_TAG,
+                    "Cannot update system-bar background: root content view is missing."
+            );
+        }
+
+        /*
+         * Light-status-bars=true means dark icons intended for a light background.
+         * Dark mode therefore needs false so that Android displays light icons.
+         */
         insetsController.setAppearanceLightStatusBars(!mDarkMode);
         insetsController.setAppearanceLightNavigationBars(!mDarkMode);
+
     }
 
     /**
@@ -1000,7 +967,7 @@ public class WebviewActivity extends AppCompatActivity {
                      * Do not reserve status-bar space while fullscreen is active.
                      * Continue respecting a physical display cutout if necessary.
                      */
-                    int topPadding = mFullscreenEnabled
+                    int topPadding = mFullScreen
                             ? 0
                             : topInsets.top;
 
@@ -1043,7 +1010,7 @@ public class WebviewActivity extends AppCompatActivity {
                         .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         );
 
-        if (mFullscreenEnabled) {
+        if (mFullScreen) {
             // Hide only the status bar.
             insetsController.hide(WindowInsetsCompat.Type.statusBars());
             // Hide both the status bar and navigation bar
@@ -1064,11 +1031,66 @@ public class WebviewActivity extends AppCompatActivity {
     }
 
     /**
-     * Toggles fullscreen mode.
+     * Shows the application settings dialog.
      */
-    private void toggleFullscreenMode() {
-        mFullscreenEnabled = !mFullscreenEnabled;
-        applyFullscreenMode();
+    private void showSettingsDialog() {
+
+        View dialogView = getLayoutInflater().inflate(R.layout.settings_dialog, null);
+
+        Switch darkModeSwitch = dialogView.findViewById(R.id.switchDarkMode);
+        Switch fullscreenSwitch = dialogView.findViewById(R.id.switchFullscreen);
+
+        darkModeSwitch.setChecked(mSharedPrefs.getBoolean(PREF_DARK_MODE, false));
+
+        fullscreenSwitch.setChecked(mSharedPrefs.getBoolean(PREF_FULLSCREEN, true));
+
+        new AlertDialog.Builder(this)
+                .setTitle("Settings")
+                .setView(dialogView)
+                .setPositiveButton("OK", (dialog, which) -> {
+                    boolean darkMode = darkModeSwitch.isChecked();
+                    boolean fullscreen = fullscreenSwitch.isChecked();
+
+                    boolean darkModeChanged = darkMode != mDarkMode;
+                    boolean fullscreenChanged = fullscreen != mFullScreen;
+
+                    if (!darkModeChanged && !fullscreenChanged) {
+                        return;
+                    }
+
+                    boolean saved = mSharedPrefs.edit()
+                            .putBoolean(PREF_DARK_MODE, darkMode)
+                            .putBoolean(PREF_FULLSCREEN, fullscreen)
+                            .commit();
+
+                    if (!saved) {
+                        Log.e(DEBUG_TAG, "Failed to save preferences.");
+                        return;
+                    }
+
+                    /*
+                     * Store the complete new state before applying either setting. This ensures
+                     * that all update methods observe consistent dark-mode and fullscreen values.
+                     */
+                    mDarkMode = darkMode;
+                    mFullScreen = fullscreen;
+
+                    if (darkModeChanged) {
+                        applyDarkMode();
+                    }
+
+                    if (fullscreenChanged) {
+                        applyFullscreenMode();
+                    }
+
+                    /*
+                     * Reapply the final system-bar theme after fullscreen visibility and insets
+                     * have been updated.
+                     */
+                    applySystemBarTheme();
+                })
+                .setNegativeButton("Cancel",null)
+                .show();
     }
 
     private void showVersionInfo() {
