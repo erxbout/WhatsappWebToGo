@@ -54,7 +54,11 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
 import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewCompat;
@@ -115,6 +119,10 @@ public class WebviewActivity extends AppCompatActivity {
     private PermissionRequest mCurrentPermissionRequest;
     private String mCurrentDownloadRequest = null;
 
+    /**
+     * Tracks whether the Activity currently requests fullscreen display.
+     */
+    private boolean mFullscreenEnabled = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,6 +132,10 @@ public class WebviewActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
+
+        applyFullscreenMode();
+
+        applySystemBarInsets();
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -444,6 +456,15 @@ public class WebviewActivity extends AppCompatActivity {
             }
         }
         return true;
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+        if (hasFocus) {
+            applyFullscreenMode();
+        }
     }
 
     private boolean checkPermission(String permission) {
@@ -905,7 +926,7 @@ public class WebviewActivity extends AppCompatActivity {
      * light icons.</p>
      */
     private void applySystemBarTheme() {
-        // Obtain the compat*bility controller used to configure system-bar icons.
+        // Obtain the compatibility controller used to configure system-bar icons.
         WindowInsetsControllerCompat insetsController =
                 new WindowInsetsControllerCompat(
                         getWindow(),
@@ -922,6 +943,133 @@ public class WebviewActivity extends AppCompatActivity {
         insetsController.setAppearanceLightNavigationBars(!mDarkMode);
     }
 
+    /**
+     * Keeps the Activity content outside the status-bar area while supporting
+     * Android's enforced edge-to-edge window behavior.
+     *
+     * <p>The listener applies the status-bar inset as top padding to the root
+     * content view. The original padding is preserved so repeated inset dispatches
+     * do not accumulate additional padding.</p>
+     */
+    private void applySystemBarInsets() {
+        /*
+         * android.R.id.content is the framework container into which the Activity's
+         * layout is placed. Its first child is the actual root view declared by the
+         * Activity layout.
+         */
+        ViewGroup contentContainer =
+                findViewById(android.R.id.content);
+
+        if (
+                contentContainer == null ||
+                        contentContainer.getChildCount() == 0
+        ) {
+            Log.e(
+                    DEBUG_TAG,
+                    "Cannot apply system-bar insets: root content view is missing."
+            );
+            return;
+        }
+
+        View rootView = contentContainer.getChildAt(0);
+
+        /*
+         * Capture the layout's original padding exactly once. Insets can be
+         * dispatched multiple times after rotation, theme changes, keyboard
+         * changes, or system-bar visibility updates.
+         */
+        int initialPaddingLeft = rootView.getPaddingLeft();
+        int initialPaddingTop = rootView.getPaddingTop();
+        int initialPaddingRight = rootView.getPaddingRight();
+        int initialPaddingBottom = rootView.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(
+                rootView,
+                (view, windowInsets) -> {
+                    boolean statusBarVisible =
+                            windowInsets.isVisible(
+                                    WindowInsetsCompat.Type.statusBars()
+                            );
+
+                    Insets topInsets = windowInsets.getInsets(
+                            WindowInsetsCompat.Type.statusBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+
+                    /*
+                     * Do not reserve status-bar space while fullscreen is active.
+                     * Continue respecting a physical display cutout if necessary.
+                     */
+                    int topPadding = mFullscreenEnabled
+                            ? 0
+                            : topInsets.top;
+
+                    view.setPadding(
+                            initialPaddingLeft,
+                            initialPaddingTop + topPadding,
+                            initialPaddingRight,
+                            initialPaddingBottom
+                    );
+
+                    Log.d(
+                            DEBUG_TAG,
+                            "Applied top system-bar inset: "
+                                    + topPadding
+                                    + " px"
+                    );
+                    return windowInsets;
+                }
+        );
+
+        /*
+         * Request an immediate inset dispatch when the Activity is already
+         * attached to a window.
+         */
+        ViewCompat.requestApplyInsets(rootView);
+    }
+
+    /**
+     * Applies the selected status-bar visibility.
+     */
+    private void applyFullscreenMode() {
+        WindowInsetsControllerCompat insetsController =
+                WindowCompat.getInsetsController(
+                        getWindow(),
+                        getWindow().getDecorView()
+                );
+
+        insetsController.setSystemBarsBehavior(
+                WindowInsetsControllerCompat
+                        .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        );
+
+        if (mFullscreenEnabled) {
+            // Hide only the status bar.
+            insetsController.hide(WindowInsetsCompat.Type.statusBars());
+            // Hide both the status bar and navigation bar
+            //insetsController.hide(WindowInsetsCompat.Type.systemBars());
+        } else {
+            // Restore the status bar.
+            insetsController.show(WindowInsetsCompat.Type.statusBars());
+            // Restore both the status bar and navigation bar
+            //insetsController.show(WindowInsetsCompat.Type.systemBars());
+        }
+
+        /*
+         * Request a fresh inset calculation because status-bar visibility changed.
+         */
+        ViewCompat.requestApplyInsets(
+                getWindow().getDecorView()
+        );
+    }
+
+    /**
+     * Toggles fullscreen mode.
+     */
+    private void toggleFullscreenMode() {
+        mFullscreenEnabled = !mFullscreenEnabled;
+        applyFullscreenMode();
+    }
 
     private void showVersionInfo() {
         int lastShownVersionCode = 0;
