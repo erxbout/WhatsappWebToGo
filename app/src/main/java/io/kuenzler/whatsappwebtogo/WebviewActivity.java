@@ -69,7 +69,7 @@ import java.util.Locale;
 public class WebviewActivity extends AppCompatActivity {
 
     private static final String CHROME_TEMPLATE = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36";
-    private static final String CHROME_VERSION_FALLBACK = "142.0.0.0";
+    private static final String CHROME_VERSION_FALLBACK = "156.0.0.0";
     private static String USER_AGENT = String.format(CHROME_TEMPLATE, CHROME_VERSION_FALLBACK);
 
     private static final String STORAGE_PERMISSION = Manifest.permission.WRITE_EXTERNAL_STORAGE; // "android.permission.WRITE_EXTERNAL_STORAGE"
