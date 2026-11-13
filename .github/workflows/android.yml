@@ -24,3 +24,11 @@ jobs:
       run: chmod +x gradlew
     - name: Build with Gradle
       run: ./gradlew build -x lint
+    - name: Build apk (APK)
+      run: ./gradlew assemble -x lint
+
+    - name: Upload APK Release - whatsappwebtogo
+      uses: actions/upload-artifact@v4
+      with:
+        name: Apk release
+        path: ./build/outputs/apk/release/
