@@ -379,10 +379,10 @@ public class WebviewActivity extends AppCompatActivity {
         }
 
         // set version of local webview to user agent to avoid outdated agent
-        PackageInfo webviewPackageInfo = WebViewCompat.getCurrentWebViewPackage(getApplicationContext());
-        if (webviewPackageInfo != null && !webviewPackageInfo.versionName.isEmpty()) {
-            USER_AGENT = String.format(CHROME_TEMPLATE, webviewPackageInfo.versionName);
-        }
+        // PackageInfo webviewPackageInfo = WebViewCompat.getCurrentWebViewPackage(getApplicationContext());
+        // if (webviewPackageInfo != null && !webviewPackageInfo.versionName.isEmpty()) {
+        //     USER_AGENT = String.format(CHROME_TEMPLATE, webviewPackageInfo.versionName);
+        // }
 
         mWebView.getSettings().setUserAgentString(USER_AGENT);
     }
