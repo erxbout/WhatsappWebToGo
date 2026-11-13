@@ -33,5 +33,3 @@ jobs:
         name: Apk release
         path: ./app/build/outputs/apk
 
-    - name: run tree
-      run: tree /
